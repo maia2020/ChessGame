@@ -25,6 +25,8 @@ class GameState():
         self.movelog = [] #Keep track of each move that was made
         self.whitekinglocation = (7,4)   #We'll keep track of the king's position so we can implement some valid moves.
         self.blackkinglocation = (0,4)
+        self.CheckMate = False
+        self.StaleMate = False
         
     
     def MakeMove(self, move): #Takes a move an execute it (Don't work for castling, pawn promotion and en-passant)
@@ -50,17 +52,31 @@ class GameState():
 
     #All moves considering checks
     def ValidMoves(self):
-        #FIRST POSSIBLE ALHORITHM:
         #1) Generate all possible moves
         moves = self.AllPossibleMoves() 
         #2) For each move, make the move
         for i in range(len(moves)-1,-1,-1): #When removing from a list, go backwards through that list
             self.MakeMove(moves[i])
             #3) Generate all opponent's moves
-            oppmoves = self.AllPossibleMoves()
             #4) For each of your opponent's moves,see if they attack your king
-        #5) If they do attack your king, that's not a valid move  
+            #When whe use self.makemove() we actually changed to the other player's turn, so we have to change it again
+            self.whiteToMove = not self.whiteToMove
+            if self.inCheck():
+                moves.remove(moves[i])  #5) If they do attack your king, that's not a valid move
+            self.whiteToMove = not self.whiteToMove #Changes back to the other player's turn so we can undo the move
+            self.UndoMove()   
         
+        if len(moves) == 0: #Either Checkmate ou Stalemate
+            if self.inCheck():
+                self.CheckMate = True
+            else:
+                self.StaleMate = True
+        else:  
+            self.CheckMate = False
+            self.StaleMate = False
+
+
+
         return moves
 
     def AllPossibleMoves(self):     #All moves without considering checks
@@ -77,8 +93,21 @@ class GameState():
                     self.MoveFunctions[piece](r , c , moves) #calls the appropriate move funciton based on piece type
         return moves
 
-    def inCheck(self):
-        pass
+    def inCheck(self): #Determine if the current player is in check
+        if self.whiteToMove:
+            return self.SquareUnderAttack(self.whitekinglocation[0] , self.whitekinglocation[1])
+        else:  
+            return self.SquareUnderAttack(self.blackkinglocation[0] , self.blackkinglocation[1])
+        
+    def SquareUnderAttack(self , r , c): #Determine if the enemy can attack the square r ,c 
+        self.whiteToMove = not self.whiteToMove #switch to the opponent' POV
+        oppmoves = self.AllPossibleMoves()
+        self.whiteToMove = not self.whiteToMove #Switch turns back
+        for move in oppmoves:
+            if move.EndRow == r and move.EndCol == c: #Square is under attack
+                return True
+        return False 
+        
 
 
  #--------------------------------Define the possible moves for each piece---------------------------------------------------#
@@ -95,7 +124,6 @@ class GameState():
             if c + 1 <= 7:
                 if self.board[r-1][c+1][0] == 'b': #Just makes it possible to capture if the piece is black (RIGHT)
                     moves.append(Move((r,c) , (r-1,c+1) , self.board))
-        
         else: #BLACK PAWN MOVES
             if self.board[r+1][c] == '--':
                 moves.append(Move((r,c) , (r+1,c) , self.board))
@@ -103,7 +131,7 @@ class GameState():
                     moves.append(Move((r,c) , (r+2,c) , self.board))
             if c - 1 >= 0:
                 if self.board[r+1][c-1][0] == 'w':
-                    moves.append(Move(r,c) , (r+1,c-1) , self.board)
+                    moves.append(Move((r,c) , (r+1,c-1) , self.board))
             if c + 1 <= 7: 
                 if self.board[r+1][c+1][0] == 'w':
                     moves.append(Move((r,c) , (r+1,c+1), self.board))
