@@ -52,12 +52,13 @@ def main(): #Update our graphics and handle user inputs
                 if len(Player_Clicks) == 2: #After the second Click
                     move = Engine.Move(Player_Clicks[0] , Player_Clicks[1] , gs.board)
                     print(move.GetChessNotation())
-                    if move in validmoves:
-                        gs.MakeMove(move)
-                        movemade = True
-                        Square_Selected = () #Reset the user clicks
-                        Player_Clicks = []
-                    else: 
+                    for i in range(len(validmoves)):
+                        if move == validmoves[i]:
+                            gs.MakeMove(validmoves[i])
+                            movemade = True
+                            Square_Selected = () #Reset the user clicks
+                            Player_Clicks = []
+                    if not movemade: 
                         Player_Clicks = [Square_Selected]
             #Key Handlers:
             elif e.type == p.KEYDOWN:
