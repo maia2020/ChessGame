@@ -29,10 +29,12 @@ def main(): #Update our graphics and handle user inputs
     gs = Engine.GameState() # Just a simplification of the method's name 
     validmoves = gs.ValidMoves()
     movemade = False #Variable that will warn us when the player makes a move
+    animate = False #Flag variable for when we should animate a move
     get_images() #Will load our images into our board
     running = True
     Square_Selected = () #No square is selected yet, keep track of the last click of the user -> tuple: (row , col)
     Player_Clicks = [] #Keep track of where player clicks -> two tuples: [(6 , 4) , (4 , 4)]
+    GameOver = False #Flag variable for when the game is over
 
     while running:
         for e in p.event.get():
@@ -40,42 +42,86 @@ def main(): #Update our graphics and handle user inputs
                 running = False 
             #Mouse Events:
             elif e.type == p.MOUSEBUTTONDOWN:
-                Mouse_Pos = p.mouse.get_pos() # Keeps Track of the mouse's position (x,y)
-                col = Mouse_Pos[0] // Square_Size
-                row = Mouse_Pos[1] // Square_Size
-                if Square_Selected == (row , col): #The user clicked the same square twice in the same turn
-                    Square_Selected = () #Deselect the sqare
-                    Player_Clicks = () #Clear Player_Clicks
-                else: 
-                    Square_Selected = (row , col)
-                    Player_Clicks.append(Square_Selected) #Append for both, first and second click
-                if len(Player_Clicks) == 2: #After the second Click
-                    move = Engine.Move(Player_Clicks[0] , Player_Clicks[1] , gs.board)
-                    print(move.GetChessNotation())
-                    for i in range(len(validmoves)):
-                        if move == validmoves[i]:
-                            gs.MakeMove(validmoves[i])
-                            movemade = True
-                            Square_Selected = () #Reset the user clicks
-                            Player_Clicks = []
-                    if not movemade: 
-                        Player_Clicks = [Square_Selected]
+                if not GameOver:
+                    Mouse_Pos = p.mouse.get_pos() # Keeps Track of the mouse's position (x,y)
+                    col = Mouse_Pos[0] // Square_Size
+                    row = Mouse_Pos[1] // Square_Size
+                    if Square_Selected == (row , col): #The user clicked the same square twice in the same turn
+                        Square_Selected = () #Deselect the sqare
+                        Player_Clicks = () #Clear Player_Clicks
+                    else: 
+                        Square_Selected = (row , col)
+                        Player_Clicks.append(Square_Selected) #Append for both, first and second click
+                    if len(Player_Clicks) == 2: #After the second Click
+                        move = Engine.Move(Player_Clicks[0] , Player_Clicks[1] , gs.board)
+                        print(move.GetChessNotation())
+                        for i in range(len(validmoves)):
+                            if move == validmoves[i]:
+                                gs.MakeMove(validmoves[i])
+                                movemade = True
+                                animate = True
+                                Square_Selected = () #Reset the user clicks
+                                Player_Clicks = []
+                        if not movemade: 
+                            Player_Clicks = [Square_Selected]
             #Key Handlers:
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z: #Undo when 'z' is pressed 
                     gs.UndoMove()
                     movemade = True
+                    animate = False #Don't animate the last move if we undo it 
+                if e.key == p.K_r: #Reset the board when 'r' is pressed:
+                    gs = Engine.GameState() #Reinitialize our whole Game state
+                    validmoves = gs.ValidMoves()
+                    Square_Selected = ()
+                    Player_Clicks = []
+                    movemade = False
+                    animate = False
 
         if movemade:
+            if animate:
+                AnimateMove(gs.movelog[-1] , Screen , gs.board , clock)
             validmoves = gs.ValidMoves() # Get the net validmoves after a move was made
             movemade = False
+            animate = False
 
-        DrawGame(Screen , gs)
+        DrawGame(Screen , gs , validmoves , Square_Selected)
+
+        if gs.CheckMate:
+            GameOver = True
+            if gs.whiteToMove:
+                DrawText(Screen , 'Black wins by checkmate')
+            else:
+                DrawText(Screen , 'White wins by checkmate')
+        elif gs.StaleMate:
+            GameOver = True
+            DrawText(Screen , 'Stalemate')
+
         clock.tick(Max_Fps)
         p.display.flip()
-    
-def DrawGame(screen , gs): #Responsible for all the graphics
+
+#Highlight possible moves
+def HighlightSquares(screen, gs , validmoves , Square_Selected):
+    if Square_Selected != ():
+       r ,  c = Square_Selected #Save the row and collum the user has selected
+       if gs.board[r][c][0] == ('w' if gs.whiteToMove else 'b' ): #The piece selected is the player's colour
+           #Highlight selected square
+           s = p.Surface((Square_Size , Square_Size)) 
+           s.set_alpha(100) #Transperance value -> 0 = transparent ; 255 = opaque
+           s.fill(p.Color('blue'))
+           screen.blit(s , (c*Square_Size , r*Square_Size))
+           #Highlight moves from that square
+           s.fill(p.Color(23 , 141 , 192))
+           for move in validmoves:
+               if move.StartRow == r and move.StartCol == c:
+                   screen.blit(s , (move.EndCol*Square_Size , move.EndRow*Square_Size))
+
+        
+
+
+def DrawGame(screen , gs , validmoves , Square_Selected): #Responsible for all the graphics
     DrawBoard(screen) #Drawn the squares that form the board
+    HighlightSquares(screen , gs , validmoves , Square_Selected) 
     DrawPieces(screen, gs.board) #Drawn pieces on top of the sqares
 
 def DrawBoard(screen): 
@@ -91,6 +137,40 @@ def DrawPieces(screen, board):
             if piece != "--": # If it isn't a empty square
                 screen.blit(Images[piece] , p.Rect(column*Square_Size , row*Square_Size , Square_Size , Square_Size))
 
+#Animating a move
+def AnimateMove(move , screen , board , clock):
+    Colors = [p.Color("white") , p.Color("gray")]  
+    coords = [] #List of coordinates the animation will move through
+    DeltaR = move.EndRow - move.StartRow
+    DeltaC = move.EndCol - move.StartCol
+    FramesPerSquare = 10 #Frames to Move one square
+    FrameCount = (abs(DeltaR) + abs(DeltaC)) * FramesPerSquare
+    for frame in range(FrameCount + 1):
+        r , c = (move.StartRow + DeltaR*frame/FrameCount , move.StartCol + DeltaC*frame/FrameCount)
+        DrawBoard(screen)
+        DrawPieces(screen , board)
+        #Erase the piece moved from its ending square
+        color = Colors[(move.EndRow + move.EndCol) % 2 ]
+        EndSquare = p.Rect(move.EndCol*Square_Size , move.EndRow*Square_Size , Square_Size , Square_Size)
+        p.draw.rect(screen , color , EndSquare)
+        #Drawn captured piece onto rectangle
+        if move.PieceCaptured != '--':
+            screen.blit(Images[move.PieceCaptured] , EndSquare)
+        #Drawn the moving piece
+        screen.blit(Images[move.PieceMoved] , p.Rect(c*Square_Size , r*Square_Size , Square_Size , Square_Size))
+        p.display.flip()
+        clock.tick(140)
+    
 
+def DrawText(screen , text):
+#-----------------------------Display the dark text-----------------------------#
+    font = p.font.SysFont("Helvitca" , 32 , True , False)
+    TextObject = font.render(text , 0 , p.Color('Black'))
+    TextLocation = p.Rect(0 , 0 , Width , Height).move(Width/2 - TextObject.get_width()/2 , Height/2 - TextObject.get_height()/2)
+    screen.blit(TextObject , TextLocation)
+#-----------------------------Display the dark text-----------------------------#
+    TextObject = font.render(text , 0 , p.Color('Gray'))
+    screen.blit(TextObject , TextLocation.move(2,2)) #Display the text with a different colour and a slightly different position, making a shadow effect
+    
 if __name__ == '__main__':
     main()
