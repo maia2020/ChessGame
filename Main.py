@@ -1,5 +1,6 @@
 import pygame as p
 import Engine 
+import ChessAI
 
 p.init()
 Width = Height = 512
@@ -35,14 +36,17 @@ def main(): #Update our graphics and handle user inputs
     Square_Selected = () #No square is selected yet, keep track of the last click of the user -> tuple: (row , col)
     Player_Clicks = [] #Keep track of where player clicks -> two tuples: [(6 , 4) , (4 , 4)]
     GameOver = False #Flag variable for when the game is over
+    PlayerOne = True #If a human is playin white = true , Ai playing white = false
+    PlayerTwo = False #Same as above but for black
 
     while running:
+        HumanTurn = (gs.whiteToMove and PlayerOne) or (not gs.whiteToMove and PlayerTwo)
         for e in p.event.get():
             if e.type == p.QUIT:# Makes it possible for us to close the game 
                 running = False 
             #Mouse Events:
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not GameOver:
+                if not GameOver and HumanTurn:
                     Mouse_Pos = p.mouse.get_pos() # Keeps Track of the mouse's position (x,y)
                     col = Mouse_Pos[0] // Square_Size
                     row = Mouse_Pos[1] // Square_Size
@@ -77,6 +81,18 @@ def main(): #Update our graphics and handle user inputs
                     Player_Clicks = []
                     movemade = False
                     animate = False
+
+        #AI move finder logic:
+        '''START of the RANDOM MOVE ai'''
+        if not GameOver and not HumanTurn:
+            AIMove = ChessAI.FindGreedyMove(gs , validmoves)
+            if AIMove is None:
+                AIMove = ChessAI.FindRandomMove(validmoves)
+            gs.MakeMove(AIMove)
+            movemade = True
+            animate = True
+
+        '''END of the RANDOM MOVE ai'''
 
         if movemade:
             if animate:
