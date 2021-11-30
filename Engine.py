@@ -51,7 +51,7 @@ class GameState():
 
         #Update enpassant variable:
         if move.PieceMoved[1] == 'p' and abs(move.StartRow - move.EndRow) == 2: #2 square pawn advances
-            self.enpassant = ((move.EndRow - 1 , move.StartCol)) #The "middle" square 
+            self.enpassant = ((move.StartRow + move.EndRow)//2, move.StartCol) #The "middle" square 
         else:
             self.enpassant = () #If any other move is made we reset our enpassant list to be empty
 
@@ -63,7 +63,7 @@ class GameState():
             else: #Queenside Castle
                 self.board[move.EndRow][move.EndCol+1] = self.board[move.EndRow][move.EndCol-2] #Moves the rook
                 self.board[move.EndRow][move.EndCol-2] = '--'
-
+                
         #Update Castling Rights when a rook or a king move
         self.UpdateCastleRights(move)
         self.CastleRightsLog.append(CastleRights(self.CurrentCastlingRight.wks , self.CurrentCastlingRight.bks , self.CurrentCastlingRight.wqs , self.CurrentCastlingRight.bqs))
@@ -98,6 +98,9 @@ class GameState():
                 else: #Queenside 
                     self.board[move.EndRow][move.EndCol-2] = self.board[move.EndRow][move.EndCol+1]
                     self.board[move.EndRow][move.EndCol+1] = '--'
+
+            self.CheckMate = False
+            self.StaleMate = False
 
             
 

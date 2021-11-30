@@ -52,7 +52,7 @@ def main(): #Update our graphics and handle user inputs
                     row = Mouse_Pos[1] // Square_Size
                     if Square_Selected == (row , col): #The user clicked the same square twice in the same turn
                         Square_Selected = () #Deselect the sqare
-                        Player_Clicks = () #Clear Player_Clicks
+                        Player_Clicks = [] #Clear Player_Clicks
                     else: 
                         Square_Selected = (row , col)
                         Player_Clicks.append(Square_Selected) #Append for both, first and second click
@@ -74,6 +74,7 @@ def main(): #Update our graphics and handle user inputs
                     gs.UndoMove()
                     movemade = True
                     animate = False #Don't animate the last move if we undo it 
+                    GameOver = False
                 if e.key == p.K_r: #Reset the board when 'r' is pressed:
                     gs = Engine.GameState() #Reinitialize our whole Game state
                     validmoves = gs.ValidMoves()
@@ -81,11 +82,12 @@ def main(): #Update our graphics and handle user inputs
                     Player_Clicks = []
                     movemade = False
                     animate = False
+                    GameOver = False
 
         #AI move finder logic:
         '''START of the RANDOM MOVE ai'''
         if not GameOver and not HumanTurn:
-            AIMove = ChessAI.FindGreedyMove(gs , validmoves)
+            AIMove = ChessAI.FindBestMove(gs , validmoves)
             if AIMove is None:
                 AIMove = ChessAI.FindRandomMove(validmoves)
             gs.MakeMove(AIMove)
@@ -175,7 +177,7 @@ def AnimateMove(move , screen , board , clock):
         #Drawn the moving piece
         screen.blit(Images[move.PieceMoved] , p.Rect(c*Square_Size , r*Square_Size , Square_Size , Square_Size))
         p.display.flip()
-        clock.tick(140)
+        clock.tick(60)
     
 
 def DrawText(screen , text):
